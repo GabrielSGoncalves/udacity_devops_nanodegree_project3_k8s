@@ -1,5 +1,6 @@
 # Project 3: Operationalizing a Microservice with Kubernetes
 ## Overview
+In this project we'll be exploring Kubernetes as a framework for deploying an application for a partner team.
 
 ## Project Scenario
 The project official description is the following:
@@ -12,7 +13,6 @@ This service follows a microservice pattern and the APIs are split into distinct
 
 For this project, you are a DevOps engineer who will be collaborating with a team that is building an API for business analysts. The API provides business analysts with basic analytics data on user activity in the coworking space service. The application they provide you functions as expected, and you will help build a pipeline to deploy it to Kubernetes.
 ```
-![Project Description Diagram](images/project.jpeg)
 
 ## Objectives
 Based on the description, we have the following project objectives:
@@ -40,8 +40,10 @@ Based on the description, we have the following project objectives:
 
 ## Installing tools and packages
 ### Installing Docker
+To install Docker in your machine, make sure to follow the [official documentation](https://docs.docker.com/engine/install/).
 
 ### Installing Kubectl
+Next, we also need to install kubectl to interact with our Kubernetes cluster.
 ```bash
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
@@ -49,6 +51,8 @@ echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 ```
 ### Installing AWS CLI
+AWS CLI is an essential command line tool to interact with AWS and can be installed following [AWS official page](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html).
+After installing, make sure to configure AWS CLI with your AWS Access Key ID and AWS Secret Access Key.
 
 ### Installing eksctl
 eksctl is a tool that makes creating and managing EKS cluster on AWS a breeze.
@@ -61,11 +65,16 @@ curl -sL "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_ch
 tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
 sudo mv /tmp/eksctl /usr/local/bin
 ```
+## Creating resources
+With the above tools installed and configured, we can start creating the project resources.
 
 ### Creating and configuring EKS cluster
+First thing we are going to create is a EKS Cluster.
 ```bash
 eksctl create cluster --name my-cluster --region us-east-1 --nodegroup-name my-nodes --node-type t3.small --nodes 1 --nodes-min 1 --nodes-max 2
 ```
+![EKS Cluser](images/eks_cluster.png)
+
 After a few minutes, with the cluster created you may configure the context for using kubectl
 ```bash
 aws eks --region us-east-1 update-kubeconfig --name my-cluster
@@ -120,7 +129,7 @@ gp2    kubernetes.io/aws-ebs   Delete          WaitForFirstConsumer   false     
 ```
  And create a `postgres-deployment.yaml` file:
  ```yaml
- apiVersion: apps/v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgresql
@@ -167,13 +176,13 @@ kubectl get pods
 You should get something like:
 ```
 NAME                          READY   STATUS    RESTARTS   AGE
-postgresql-77d75d45d5-p29fx   1/1     Running   0          84s
+postgresql-77d75d45d5-lgjfj   1/1     Running   0          84s
 ```
 
 ### Accessing the Postgres database
 We can access the Postgres deployed on the EKS cluster through `kubectl` command:
 ```bash
-kubectl exec -it postgresql-77d75d45d5-p29fx -- bash
+kubectl exec -it postgresql-77d75d45d5-lgjfj -- bash
 ```
 And `psql` to login to the Postgres database:
 ```bash
@@ -202,15 +211,23 @@ We can check the available services on our EKS cluster:
 ```bash
 kubectl get svc
 ```
+![kubectl get svc](images/get_svc.png)
+
+And also the pods:
+```bash
+kubectl get pods
 ```
-NAME                 TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
-kubernetes           ClusterIP   10.100.0.1       <none>        443/TCP    29m
-postgresql-service   ClusterIP   10.100.179.103   <none>        5432/TCP   15s
-```
+![kubectl get pods](images/get_pods.png)
+
 And setup the port-forwarding to the postgresql-service:
 ```bash
 kubectl port-forward service/postgresql-service 5433:5432 &
 ```
+![Port Forward](images/port_forward.png)
+
+We can also see the details for the Postgres service and deployment:
+![Describe Deployment](images/deployment_postgres.png)
+![Describe SVC](images/describe_svc_postgres.png)
 
 ### Accessing the Postgres database from local machine
 After installing locally `postgresql` libs:
@@ -220,11 +237,11 @@ apt install postgresql postgresql-contrib
 
 We can try running SQL statements:
 ```
-PGPASSWORD="$DB_PASSWORD" psql --host 127.0.0.1 -U myuser -d mydatabase -p 5433 < 1_create_tables.sql
-PGPASSWORD="$DB_PASSWORD" psql --host 127.0.0.1 -U myuser -d mydatabase -p 5433 < 2_seed_users.sql
-PGPASSWORD="$DB_PASSWORD" psql --host 127.0.0.1 -U myuser -d mydatabase -p 5433 < 3_seed_tokens.sql
+PGPASSWORD="$DB_PASSWORD" psql --host 127.0.0.1 -U myuser -d mydatabase -p 5433 < db/1_create_tables.sql
+PGPASSWORD="$DB_PASSWORD" psql --host 127.0.0.1 -U myuser -d mydatabase -p 5433 < db/2_seed_users.sql
+PGPASSWORD="$DB_PASSWORD" psql --host 127.0.0.1 -U myuser -d mydatabase -p 5433 < db/3_seed_tokens.sql
 ```
-
+Make sure to run each SQL statement in sequence, as there are key dependencies between them.
 And finally check the data using SQL queries:
 ```
 PGPASSWORD="$DB_PASSWORD" psql --host 127.0.0.1 -U myuser -d mydatabase -p 5433
@@ -256,17 +273,6 @@ id | first_name | last_name |         joined_at          | is_active
  18 | Carolina   | Schwartz  | 2023-01-15 06:23:39.75789  | t
  19 | Camille    | Curry     | 2022-12-20 12:23:39.757893 | t
  20 | Erik       | Ramirez   | 2023-02-12 05:23:39.757897 | t
-```
-
-To close the forwarded ports:
-```bash
-ps aux | grep 'kubectl port-forward' | grep -v grep | awk '{print $2}' | xargs -r kill
-```
-
-
-### Deleting the EKS cluster
-```bash
-eksctl delete cluster --name my-cluster --region us-east-1
 ```
 
 ## Building the analytics application locally
@@ -338,6 +344,7 @@ CMD python app.py
 ```
 To create a Docker image with our application, we simply run:
 ```bash
+cd analytics
 docker build -t analytics-test-docker .
 ```
 
@@ -347,7 +354,6 @@ docker images
 ```
 And create a Docker container from the created image:
 ```bash
-```
 docker run --network="host" --env-file .env analytics-test-docker
 ```
 
@@ -359,34 +365,23 @@ aws ecr create-repository \
     --repository-name coworking-analytics \
     --image-scanning-configuration scanOnPush=true
 ```
+![ECR Repo](images/ecr_repo.png)
 
 
-### Local development with Minikube
-We are going to use Minikube for initial testing locally, preventing unecessary cloud cost.
-To install it on a local Linux machine:
+## Resources clean up
+To close the forwarded ports for the Kubernetes cluster:
 ```bash
-curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-sudo install minikube-linux-amd64 /usr/local/bin/minikube && rm minikube-linux-amd64
+ps aux | grep 'kubectl port-forward' | grep -v grep | awk '{print $2}' | xargs -r kill
 ```
 
-After installation, we can start Minikube:
+### Deleting the EKS cluster
+And finally, to avoid unecessary cloud cost, make sure to delete the EKS cluster as soon you finish the project.
 ```bash
-minikube start
-```
-Next, check the local minikube cluster namespace:
-```bash
-kubectl get namespace
+eksctl delete cluster --name my-cluster --region us-east-1
 ```
 
-### Kubectl
 
-- Checking logs
-```bash
-kubectl logs <POD_NAME> -c <CONTAINER_NAME>
-```
-
-- Debugging with Kubernetes
-```
 
 ## References
-- [Minikube start](https://minikube.sigs.k8s.io/docs/start/?arch=%2Flinux%2Fx86-64%2Fstable%2Fbinary+download)
+- [Install Docker Engine](https://docs.docker.com/engine/install/)
+[Minikube start](https://minikube.sigs.k8s.io/docs/start/?arch=%2Flinux%2Fx86-64%2Fstable%2Fbinary+download)
