@@ -359,6 +359,8 @@ docker run --network="host" --env-file .env analytics-test-docker
 
 ## Setting up CI with AWS CodeBuild
 Moving on, we need to create a Continuous Integration pipeline for deploying our application based on Git repository changes. 
+
+### ECR repository creation
 We'll first create an AWS ECR repository to host our Docker images:
 ```bash
 aws ecr create-repository \
@@ -366,6 +368,17 @@ aws ecr create-repository \
     --image-scanning-configuration scanOnPush=true
 ```
 ![ECR Repo](images/ecr_repo.png)
+
+### CodeBuild project creation
+The next step consists of creating a new CodeBuild project that is going to be linked to this current Github project repository. We have used default configurations recommended by the course video on CodeBuild, and also added the following variables:
+```
+AWS_DEFAULT_REGION='us-east-1'
+AWS_ACCOUNT_ID='<AWS-account-id>
+APP_IMAGE_REPO_NAME='coworking-analytics'
+```
+We executed the "Start build" to make sure the variables were correctly set.
+
+![CodeBuild Project](images/codebuild-project.png)
 
 
 ## Resources clean up
