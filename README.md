@@ -380,6 +380,130 @@ We executed the "Start build" to make sure the variables were correctly set.
 
 ![CodeBuild Project](images/codebuild-project.png)
 
+## Deploying the application
+Finally, we need to create the deployment YAML files with the secrets to connect to the deployed database.
+The files can be found in the `deployment` folder.
+
+```
+# configmap.yaml
+apiVersion: v1
+
+kind: ConfigMap
+metadata:
+  name: coworking-config
+data:
+  DB_NAME: "mydatabase"
+  DB_USER: "myuser"
+  DB_HOST: "postgresql-service"
+  DB_PORT: "5432"
+```
+```secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dbpassword-secret
+type: Opaque
+data:
+  DB_PASSWORD: <db-password-in-base64>
+```
+```
+# coworking-deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: coworking
+spec:
+  type: LoadBalancer
+  selector:
+    service: coworking
+  ports:
+  - name: "5153"
+    protocol: TCP
+    port: 5153
+    targetPort: 5153
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coworking
+  labels:
+    name: coworking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: coworking
+  template:
+    metadata:
+      labels:
+        service: coworking
+    spec:
+      containers:
+      - name: coworking-analytics
+        image: 264208470401.dkr.ecr.us-east-1.amazonaws.com/coworking-analytics:4
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /health_check
+            port: 5153
+          initialDelaySeconds: 5
+          timeoutSeconds: 2
+        readinessProbe:
+          httpGet:
+            path: "/readiness_check"
+            port: 5153
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+        envFrom:
+        - configMapRef:
+            name: coworking-config
+        env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: dbpassword-secret
+              key: DB_PASSWORD
+      restartPolicy: Always
+```
+To deploy it, we need to execute the following command:
+```bash
+kubectl apply -f deployment/coworking-deployment.yaml
+```
+The deployed application can be verified with:
+![Service Deployment](images/service_deployment.png)
+
+And also, the logs in CloudWatch, but first we need to install the Cloud Watch Agent on the EKS cluster to get the Container Insights logs:
+
+```bash
+aws iam attach-role-policy \
+--role-name eksctl-my-cluster-nodegroup-my-nod-NodeInstanceRole-Nc68pgkOnkky \
+--policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy 
+```
+```bash
+aws eks create-addon --addon-name amazon-cloudwatch-observability --cluster-name my-cluster
+```
+You should get an output in the terminal similar to this:
+```bash
+{
+    "addon": {
+        "addonName": "amazon-cloudwatch-observability",
+        "clusterName": "my-cluster",
+        "status": "CREATING",
+        "addonVersion": "v3.1.0-eksbuild.1",
+        "health": {
+            "issues": []
+        },
+        "addonArn": "arn:aws:eks:us-east-1:264208470401:addon/my-cluster/amazon-cloudwatch-observability/baca52ec-e597-accd-b6e0-d6fb2ef68ee4",
+        "createdAt": "2025-01-27T00:41:41.668000-03:00",
+        "modifiedAt": "2025-01-27T00:41:41.684000-03:00",
+        "tags": {}
+    }
+}
+```
+Go back to the CloudWatch log groups and you'll find a list of new streams:
+
+![Cloudwatch Streams](images/cloudwatch_streams.png)
+![Cloudwatch Logs Example](images/cloudwatch_logs_example.png)
 
 ## Resources clean up
 To close the forwarded ports for the Kubernetes cluster:
@@ -392,7 +516,6 @@ And finally, to avoid unecessary cloud cost, make sure to delete the EKS cluster
 ```bash
 eksctl delete cluster --name my-cluster --region us-east-1
 ```
-
 
 
 ## References
