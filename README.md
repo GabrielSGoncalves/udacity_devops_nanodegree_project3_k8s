@@ -369,6 +369,9 @@ aws ecr create-repository \
 ```
 ![ECR Repo](images/ecr_repo.png)
 
+Bellow is the Docker image pushed to the ECR repository:
+![ECR Docker Images](images/ecr_docker_images.png)
+
 ### CodeBuild project creation
 The next step consists of creating a new CodeBuild project that is going to be linked to this current Github project repository. We have used default configurations recommended by the course video on CodeBuild, and also added the following variables:
 ```
@@ -376,7 +379,7 @@ AWS_DEFAULT_REGION='us-east-1'
 AWS_ACCOUNT_ID='<AWS-account-id>
 APP_IMAGE_REPO_NAME='coworking-analytics'
 ```
-We executed the "Start build" to make sure the variables were correctly set.
+We executed the "Start build" to make sure the variables were correctly set. Next, we pushed a changes to our GitHub repository to test the CodeBuild integration. Bellow you can the last CodeBuild runs were triggered by GitHub-Hookshoot:
 
 ![CodeBuild Project](images/codebuild-project.png)
 
@@ -469,8 +472,15 @@ To deploy it, we need to execute the following command:
 ```bash
 kubectl apply -f deployment/coworking-deployment.yaml
 ```
-The deployed application can be verified with:
+The deployed application can be verified with the pictures bellow:
 ![Service Deployment](images/service_deployment.png)
+
+We can check the deployment with `kubectl get pods` and `kubectl describe deployment`:
+
+![Get pods](images/coworking_get_pods.png)
+![Service Deployment](images/coworking_deployment.png)
+
+
 
 And also, the logs in CloudWatch, but first we need to install the Cloud Watch Agent on the EKS cluster to get the Container Insights logs:
 
@@ -503,7 +513,7 @@ You should get an output in the terminal similar to this:
 Go back to the CloudWatch log groups and you'll find a list of new streams:
 
 ![Cloudwatch Streams](images/cloudwatch_streams.png)
-![Cloudwatch Logs Example](images/cloudwatch_logs_example.png)
+![Cloudwatch Logs](images/cloudwatch_app_logs.png)
 
 ## Resources clean up
 To close the forwarded ports for the Kubernetes cluster:
