@@ -468,8 +468,9 @@ spec:
               key: DB_PASSWORD
       restartPolicy: Always
 ```
-To deploy it, we need to execute the following command:
+To deploy it, we need to execute the following commands:
 ```bash
+kubectl apply -f deployment/configmap.yaml
 kubectl apply -f deployment/coworking-deployment.yaml
 ```
 The deployed application can be verified with the pictures bellow:
@@ -477,10 +478,7 @@ The deployed application can be verified with the pictures bellow:
 
 We can check the deployment with `kubectl get pods` and `kubectl describe deployment`:
 
-![Get pods](images/coworking_get_pods.png)
-![Service Deployment](images/coworking_deployment.png)
-
-
+![Pods and deployment ready](images/application_pods_and_deployment_ready.png)
 
 And also, the logs in CloudWatch, but first we need to install the Cloud Watch Agent on the EKS cluster to get the Container Insights logs:
 
