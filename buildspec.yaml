@@ -7,11 +7,11 @@ phases:
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
   build:
     commands:
-      - echo Started building Docker images ...          
+      - echo Started building Docker images ...
       - docker build -t $APP_IMAGE_REPO_NAME:$CODEBUILD_BUILD_NUMBER ./analytics
-      - docker tag $APP_IMAGE_REPO_NAME:$CODEBUILD_BUILD_NUMBER $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$APP_IMAGE_REPO_NAME:$CODEBUILD_BUILD_NUMBER      
+      - docker tag $APP_IMAGE_REPO_NAME:$CODEBUILD_BUILD_NUMBER $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$APP_IMAGE_REPO_NAME:$CODEBUILD_BUILD_NUMBER
   post_build:
     commands:
-      - echo Completed building Docker image 
+      - echo Completed building Docker image
       - echo Started pushing images to ECR ...
       - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$APP_IMAGE_REPO_NAME:$CODEBUILD_BUILD_NUMBER

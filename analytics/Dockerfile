@@ -1,4 +1,4 @@
-FROM python:3.10-slim-buster
+FROM FROM public.ecr.aws/coworking-analytics/python:3.10-slim-buster
 
 WORKDIR /src
 
